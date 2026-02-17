@@ -37,7 +37,7 @@
     </button>
 
     <div class="login-divider"></div>
-    <div class="login-info">Markpad reads and writes <strong style="color:var(--text-muted)">.md files</strong> in your Google Drive. Your files are only accessible to you.</div>
+    <div class="login-info">Markpad stores your notes as <strong style="color:var(--text-muted)">.md files</strong> in a folder on your Google Drive. Your files are only accessible to you.</div>
   </div>
 </div>
 
@@ -94,7 +94,7 @@
     <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="sidebar-header">
-        <h2 id="sidebarTitle">My Drive · .md files</h2>
+        <h2 id="sidebarTitle">Markpad</h2>
         <div class="search-wrap">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -125,7 +125,7 @@
       <div class="empty-state" id="emptyState">
         <div class="empty-state-icon">📄</div>
         <h3>Select a note to start writing</h3>
-        <p>Your .md files from Google Drive appear in the sidebar.</p>
+        <p>Your notes from the Markpad folder appear in the sidebar.</p>
       </div>
 
       <div id="editorWrapper" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
@@ -190,7 +190,7 @@
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Saved to Drive
+            Saved
           </div>
         </div>
       </div>
@@ -202,10 +202,10 @@
 <div class="modal-overlay" id="newModal">
   <div class="modal">
     <h3>New Note</h3>
-    <p>Creates a new <code style="font-family:monospace;font-size:11px;color:#c9a84c">.md</code> file in your Google Drive root.</p>
+    <p>Creates a new <code style="font-family:monospace;font-size:11px;color:#c9a84c">.md</code> file in your Markpad folder.</p>
     <input type="text" id="newFileName" placeholder="my-note" oninput="updateNewFilePreview()" onkeydown="if(event.key==='Enter') createNewFile()">
     <div class="file-path" id="newFilePreview" style="margin-bottom:16px;font-size:11px;color:#8a8070">
-      Drive / <span id="newFileNamePreview">my-note</span>.md
+      Markpad / <span id="newFileNamePreview">my-note</span>.md
     </div>
     <div class="modal-actions">
       <button class="topbar-btn" onclick="closeModal('newModal')">Cancel</button>
@@ -221,7 +221,7 @@
     <p id="deleteModalMsg">This will permanently delete the file from your Google Drive. This cannot be undone.</p>
     <div class="modal-actions">
       <button class="topbar-btn" onclick="closeModal('deleteModal')">Cancel</button>
-      <button class="topbar-btn danger" onclick="confirmDelete()">Delete from Drive</button>
+      <button class="topbar-btn danger" onclick="confirmDelete()">Delete</button>
     </div>
   </div>
 </div>
@@ -239,7 +239,7 @@
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
     </svg>
-    Delete from Drive
+    Delete
   </div>
 </div>
 
@@ -276,6 +276,52 @@ async function driveRequest(url, options = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// FOLDER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+async function ensureMarkpadFolder() {
+  try {
+    // Check if Markpad folder already exists
+    const searchQuery = encodeURIComponent(
+      "name = 'Markpad' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    );
+    const searchRes = await driveRequest(
+      `https://www.googleapis.com/drive/v3/files?q=${searchQuery}&fields=files(id,name)`
+    );
+    const searchData = await searchRes.json();
+    
+    if (searchData.files && searchData.files.length > 0) {
+      // Folder exists, use it
+      markpadFolderId = searchData.files[0].id;
+      return markpadFolderId;
+    }
+    
+    // Create Markpad folder
+    const metadata = {
+      name: 'Markpad',
+      mimeType: 'application/vnd.google-apps.folder'
+    };
+    
+    const createRes = await driveRequest(
+      'https://www.googleapis.com/drive/v3/files?fields=id',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(metadata)
+      }
+    );
+    
+    const createData = await createRes.json();
+    markpadFolderId = createData.id;
+    showToast('📁 Created Markpad folder in your Drive');
+    return markpadFolderId;
+  } catch(e) {
+    console.error('Error ensuring Markpad folder:', e);
+    showToast('Could not create Markpad folder', true);
+    throw e;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // FILE LIST
 // ═══════════════════════════════════════════════════════════════
 async function loadFiles() {
@@ -283,9 +329,14 @@ async function loadFiles() {
   document.getElementById('fileList').innerHTML = '<div class="sidebar-loading"><div class="spinner"></div>Loading…</div>';
 
   try {
-    // Query Drive for .md files
+    // Ensure we have the Markpad folder
+    if (!markpadFolderId) {
+      await ensureMarkpadFolder();
+    }
+    
+    // Query Drive for .md files in Markpad folder only
     const query = encodeURIComponent(
-      "name contains '.md' and mimeType = 'text/plain' and trashed = false"
+      `name contains '.md' and mimeType = 'text/plain' and '${markpadFolderId}' in parents and trashed = false`
     );
     const res = await driveRequest(
       `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime+desc&pageSize=50`
@@ -298,7 +349,7 @@ async function loadFiles() {
 
     if (files.length === 0) {
       document.getElementById('fileList').innerHTML =
-        '<div class="sidebar-empty">No .md files found in your Drive.<br>Create one to get started.</div>';
+        '<div class="sidebar-empty">No notes in Markpad folder yet.<br>Create one to get started.</div>';
     }
   } catch(e) {
     if (e.message !== 'Unauthorized') {
@@ -317,26 +368,32 @@ function renderFileList(list) {
     return;
   }
 
-  document.getElementById('fileList').innerHTML = list.map(f => `
+  document.getElementById('fileList').innerHTML = list.map(f => {
+    const displayName = extractDisplayName(f.name);
+    return `
     <div class="file-item ${f.id === activeFileId ? 'active' : ''}"
          id="fi-${f.id}"
          onclick="selectFile('${f.id}')"
          oncontextmenu="showContextMenu(event,'${f.id}')">
       <div class="file-icon">📄</div>
       <div class="file-meta">
-        <div class="file-name">${escHtml(f.name)}</div>
+        <div class="file-name">${escHtml(displayName)}</div>
         <div class="file-info">
           <span>${formatDate(f.modifiedTime)}</span>
           ${f.size ? `<span>·</span><span>${formatSize(f.size)}</span>` : ''}
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function filterFiles(q) {
   const lower = q.toLowerCase();
-  const filtered = files.filter(f => f.name.toLowerCase().includes(lower));
+  const filtered = files.filter(f => {
+    const displayName = extractDisplayName(f.name);
+    return displayName.toLowerCase().includes(lower);
+  });
   renderFileList(filtered);
 }
 
@@ -360,10 +417,10 @@ async function selectFile(id) {
   // Show editor
   showEditor();
 
-  // Set title
-  const baseName = file.name.replace(/\.md$/i, '');
-  document.getElementById('fileTitleInput').value = baseName;
-  document.getElementById('filePath').textContent = `Drive / ${file.name}`;
+  // Set title (display name only, without ID)
+  const displayName = extractDisplayName(file.name);
+  document.getElementById('fileTitleInput').value = displayName;
+  document.getElementById('filePath').textContent = `Markpad / ${displayName}.md`;
 
   // Load content from Drive
   setLoading(true);
@@ -473,7 +530,19 @@ async function saveFile() {
   if (!activeFileId) return;
   const md = getCurrentMarkdown();
   const titleVal = document.getElementById('fileTitleInput').value.trim() || 'untitled';
-  const newName = titleVal.endsWith('.md') ? titleVal : titleVal + '.md';
+  
+  // Get current file to extract its ID
+  const file = files.find(f => f.id === activeFileId);
+  if (!file) return;
+  
+  // Extract existing ID from filename, or generate new one if missing
+  let fileId = extractFileId(file.name);
+  if (!fileId) {
+    fileId = generateFileId();
+  }
+  
+  // Build new filename with ID preserved
+  const newName = buildFilename(titleVal, fileId);
 
   setSaving(true);
 
@@ -489,8 +558,7 @@ async function saveFile() {
     );
 
     // Update name if changed
-    const file = files.find(f => f.id === activeFileId);
-    if (file && file.name !== newName) {
+    if (file.name !== newName) {
       await driveRequest(
         `https://www.googleapis.com/drive/v3/files/${activeFileId}`,
         {
@@ -508,7 +576,7 @@ async function saveFile() {
     activeFileContent = md;
     isDirty = false;
     setSaved();
-    showToast('✓ Saved to Google Drive');
+    showToast('✓ Saved');
   } catch(e) {
     console.error('Save error:', e);
     if (e.message === 'Unauthorized') {
@@ -538,15 +606,28 @@ async function autoSave() {
 // ═══════════════════════════════════════════════════════════════
 async function createNewFile() {
   const rawName = document.getElementById('newFileName').value.trim() || 'untitled';
-  const name = (rawName.endsWith('.md') ? rawName : rawName + '.md');
+  
+  // Generate unique ID for the file
+  const fileId = generateFileId();
+  const name = buildFilename(rawName, fileId);
+  
   closeModal('newModal');
 
-  const initialContent = `# ${rawName.replace(/\.md$/i,'')}\n\nStart writing here…`;
+  const initialContent = `# ${rawName}\n\nStart writing here…`;
 
   try {
+    // Ensure we have the Markpad folder
+    if (!markpadFolderId) {
+      await ensureMarkpadFolder();
+    }
+    
     // Multipart upload: metadata + content
     const boundary = 'markpad_boundary_' + Date.now();
-    const metadata = JSON.stringify({ name, mimeType: 'text/plain' });
+    const metadata = JSON.stringify({ 
+      name, 
+      mimeType: 'text/plain',
+      parents: [markpadFolderId]
+    });
 
     const body =
       `--${boundary}\r\n` +
@@ -570,7 +651,7 @@ async function createNewFile() {
     newFile.size = initialContent.length.toString();
     files.unshift(newFile);
     renderFileList(files);
-    showToast(`📄 Created ${name} in Drive`);
+    showToast(`📄 Created ${rawName}.md`);
     await selectFile(newFile.id);
   } catch(e) {
     if (e.message !== 'Unauthorized') showToast('Could not create file', true);
@@ -583,8 +664,9 @@ async function createNewFile() {
 function ctxDelete() {
   deleteTargetId = ctxTargetId;
   const file = files.find(f => f.id === deleteTargetId);
+  const displayName = file ? extractDisplayName(file.name) : '';
   document.getElementById('deleteModalMsg').textContent =
-    `"${file?.name}" will be permanently deleted from your Google Drive.`;
+    `"${displayName}.md" will be permanently deleted.`;
   hideContextMenu();
   document.getElementById('deleteModal').classList.add('open');
 }
@@ -600,7 +682,7 @@ async function confirmDelete() {
     );
     files = files.filter(f => f.id !== deleteTargetId);
     renderFileList(files);
-    showToast('File deleted from Drive');
+    showToast('Note deleted');
     if (activeFileId === deleteTargetId) {
       resetEditor();
     }
@@ -653,7 +735,7 @@ function onRawChange() {
 function onTitleChange() {
   markDirty();
   const name = document.getElementById('fileTitleInput').value || 'untitled';
-  document.getElementById('filePath').textContent = `Drive / ${name}.md`;
+  document.getElementById('filePath').textContent = `Markpad / ${name}.md`;
 }
 
 function setMode(mode) {
@@ -806,6 +888,41 @@ function formatSize(bytes) {
   if (b < 1024) return `${b} B`;
   if (b < 1048576) return `${(b/1024).toFixed(1)} KB`;
   return `${(b/1048576).toFixed(1)} MB`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILE ID UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function generateFileId() {
+  // Generate unique ID: timestamp + random string
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  return `${timestamp}${random}`;
+}
+
+function extractFileId(filename) {
+  // Extract ID from filename format: "name_ID.md"
+  const match = filename.match(/_([a-z0-9]+)\.md$/i);
+  return match ? match[1] : null;
+}
+
+function extractDisplayName(filename) {
+  // Extract display name without ID: "My Note_abc123.md" -> "My Note"
+  const withoutExtension = filename.replace(/\.md$/i, '');
+  const parts = withoutExtension.split('_');
+  
+  // If there's an ID at the end, remove it
+  if (parts.length > 1 && /^[a-z0-9]+$/i.test(parts[parts.length - 1])) {
+    parts.pop();
+  }
+  
+  return parts.join('_');
+}
+
+function buildFilename(displayName, fileId) {
+  // Build filename: "My Note" + "abc123" -> "My Note_abc123.md"
+  const cleanName = displayName.replace(/\.md$/i, '');
+  return `${cleanName}_${fileId}.md`;
 }
 
 // ═══════════════════════════════════════════════════════════════

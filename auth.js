@@ -60,7 +60,13 @@ function showAppInterface() {
     avatar.textContent = currentUser.email[0].toUpperCase();
   }
 
-  loadFiles();
+  // Ensure Markpad folder exists, then load files
+  ensureMarkpadFolder()
+    .then(() => loadFiles())
+    .catch(e => {
+      console.error('Failed to initialize Markpad folder:', e);
+      showToast('Failed to initialize Markpad folder', true);
+    });
 }
 
 function isAllowed(email) {
