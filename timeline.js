@@ -3,8 +3,11 @@
 // ═══════════════════════════════════════════════════════════════
 
 let timelineSelectedPerson = null;
+let timelineSelectedTag = null;
 let timelineNotes = [];
 let timelineAllPeople = [];
+let timelineAllTags = [];
+let timelineFilterMode = 'AND'; // 'AND' or 'OR'
 
 // ───────────────────────────────────────────────────────────────
 // NAVIGATION
@@ -24,15 +27,20 @@ function showTimelineView() {
   
   // Reset timeline
   timelineSelectedPerson = null;
+  timelineSelectedTag = null;
   timelineNotes = [];
-  document.getElementById('timelineSearchInput').value = '';
+  timelineFilterMode = 'AND';
+  document.getElementById('timelinePersonInput').value = '';
+  document.getElementById('timelineTagInput').value = '';
+  updateTimelineFilterButton();
+  updateTimelineSelectedFilters();
   document.getElementById('timelineContent').innerHTML = `
     <div class="timeline-empty">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
         <circle cx="12" cy="7" r="4"/>
       </svg>
-      <p>Search for a person to see their timeline</p>
+      <p>Search for a person or tag to see their timeline</p>
     </div>
   `;
 }
@@ -52,8 +60,8 @@ function hideTimelineView() {
 // PEOPLE SEARCH
 // ───────────────────────────────────────────────────────────────
 
-async function onTimelineSearchChange() {
-  const input = document.getElementById('timelineSearchInput');
+async function onTimelinePersonSearchChange() {
+  const input = document.getElementById('timelinePersonInput');
   const query = input.value.toLowerCase().trim();
   
   if (!query) {
@@ -79,10 +87,10 @@ function renderTimelinePeopleDropdown(people) {
   const dropdown = document.getElementById('timelinePeopleDropdown');
   
   if (people.length === 0) {
-    dropdown.innerHTML = `<div class="timeline-people-dropdown-item">No people found</div>`;
+    dropdown.innerHTML = `<div class="timeline-dropdown-item">No people found</div>`;
   } else {
     dropdown.innerHTML = people.map(p => `
-      <div class="timeline-people-dropdown-item" onmousedown="selectTimelinePerson('${p.person_id}','${p.name.replace(/'/g, "\\'")}')">
+      <div class="timeline-dropdown-item" onmousedown="selectTimelinePerson('${p.person_id}','${p.name.replace(/'/g, "\\'")}')">
         ${escHtml(p.name)}
       </div>
     `).join('');
@@ -91,31 +99,211 @@ function renderTimelinePeopleDropdown(people) {
   dropdown.classList.add('open');
 }
 
-function showTimelineDropdown() {
-  const input = document.getElementById('timelineSearchInput');
+function showTimelinePeopleDropdown() {
+  const input = document.getElementById('timelinePersonInput');
   if (input.value.trim()) {
-    onTimelineSearchChange();
+    onTimelinePersonSearchChange();
   }
 }
 
-let timelineDropdownHideTimeout;
-function hideTimelineDropdownDelayed() {
-  timelineDropdownHideTimeout = setTimeout(() => {
+function hideTimelinePeopleDropdownDelayed() {
+  setTimeout(() => {
     document.getElementById('timelinePeopleDropdown').classList.remove('open');
   }, 200);
 }
 
 // ───────────────────────────────────────────────────────────────
-// PERSON SELECTION & TIMELINE RENDERING
+// TAGS SEARCH
+// ───────────────────────────────────────────────────────────────
+
+async function onTimelineTagSearchChange() {
+  const input = document.getElementById('timelineTagInput');
+  const query = input.value.toLowerCase().trim();
+  
+  if (!query) {
+    document.getElementById('timelineTagsDropdown').innerHTML = '';
+    document.getElementById('timelineTagsDropdown').classList.remove('open');
+    return;
+  }
+  
+  // Fetch tags if not cached
+  if (timelineAllTags.length === 0) {
+    timelineAllTags = await fetchAllTags();
+  }
+  
+  // Filter tags by query
+  const filtered = timelineAllTags.filter(t => 
+    t.toLowerCase().includes(query)
+  );
+  
+  renderTimelineTagsDropdown(filtered);
+}
+
+function renderTimelineTagsDropdown(tags) {
+  const dropdown = document.getElementById('timelineTagsDropdown');
+  
+  if (tags.length === 0) {
+    dropdown.innerHTML = `<div class="timeline-dropdown-item">No tags found</div>`;
+  } else {
+    dropdown.innerHTML = tags.map(t => `
+      <div class="timeline-dropdown-item" onmousedown="selectTimelineTag('${t.replace(/'/g, "\\'")}')">
+        #${escHtml(t)}
+      </div>
+    `).join('');
+  }
+  
+  dropdown.classList.add('open');
+}
+
+function showTimelineTagsDropdown() {
+  const input = document.getElementById('timelineTagInput');
+  if (input.value.trim()) {
+    onTimelineTagSearchChange();
+  }
+}
+
+function hideTimelineTagsDropdownDelayed() {
+  setTimeout(() => {
+    document.getElementById('timelineTagsDropdown').classList.remove('open');
+  }, 200);
+}
+
+// ───────────────────────────────────────────────────────────────
+// FILTER SELECTION & MANAGEMENT
 // ───────────────────────────────────────────────────────────────
 
 async function selectTimelinePerson(personId, personName) {
   timelineSelectedPerson = { person_id: personId, name: personName };
   
-  // Update search input
-  document.getElementById('timelineSearchInput').value = personName;
+  // Clear search input
+  document.getElementById('timelinePersonInput').value = '';
   document.getElementById('timelinePeopleDropdown').classList.remove('open');
   
+  // Update selected filters display
+  updateTimelineSelectedFilters();
+  
+  // Load and render timeline
+  await loadAndRenderTimeline();
+}
+
+async function selectTimelineTag(tagName) {
+  timelineSelectedTag = tagName;
+  
+  // Clear search input
+  document.getElementById('timelineTagInput').value = '';
+  document.getElementById('timelineTagsDropdown').classList.remove('open');
+  
+  // Update selected filters display
+  updateTimelineSelectedFilters();
+  
+  // Load and render timeline
+  await loadAndRenderTimeline();
+}
+
+function clearTimelinePerson() {
+  timelineSelectedPerson = null;
+  updateTimelineSelectedFilters();
+  
+  // Reload timeline if we still have a tag selected
+  if (timelineSelectedTag) {
+    loadAndRenderTimeline();
+  } else {
+    // Show empty state
+    document.getElementById('timelineContent').innerHTML = `
+      <div class="timeline-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <p>Search for a person or tag to see their timeline</p>
+      </div>
+    `;
+  }
+}
+
+function clearTimelineTag() {
+  timelineSelectedTag = null;
+  updateTimelineSelectedFilters();
+  
+  // Reload timeline if we still have a person selected
+  if (timelineSelectedPerson) {
+    loadAndRenderTimeline();
+  } else {
+    // Show empty state
+    document.getElementById('timelineContent').innerHTML = `
+      <div class="timeline-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <p>Search for a person or tag to see their timeline</p>
+      </div>
+    `;
+  }
+}
+
+function toggleTimelineFilterMode() {
+  timelineFilterMode = timelineFilterMode === 'AND' ? 'OR' : 'AND';
+  updateTimelineFilterButton();
+  
+  // Reload timeline if we have both filters selected
+  if (timelineSelectedPerson && timelineSelectedTag) {
+    loadAndRenderTimeline();
+  }
+}
+
+function updateTimelineFilterButton() {
+  const button = document.getElementById('timelineFilterModeBtn');
+  if (button) {
+    button.textContent = timelineFilterMode;
+    button.title = timelineFilterMode === 'AND' ? 'Show notes matching both filters' : 'Show notes matching either filter';
+  }
+}
+
+function updateTimelineSelectedFilters() {
+  const container = document.getElementById('timelineSelectedFilters');
+  if (!container) return;
+  
+  const filters = [];
+  
+  if (timelineSelectedPerson) {
+    filters.push(`
+      <div class="timeline-selected-filter">
+        <span>${escHtml(timelineSelectedPerson.name)}</span>
+        <button class="timeline-filter-clear" onclick="clearTimelinePerson()" title="Clear person filter">×</button>
+      </div>
+    `);
+  }
+  
+  if (timelineSelectedTag) {
+    filters.push(`
+      <div class="timeline-selected-filter timeline-selected-tag">
+        <span>#${escHtml(timelineSelectedTag)}</span>
+        <button class="timeline-filter-clear" onclick="clearTimelineTag()" title="Clear tag filter">×</button>
+      </div>
+    `);
+  }
+  
+  if (filters.length === 0) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+  } else {
+    container.innerHTML = filters.join('');
+    container.style.display = 'flex';
+  }
+  
+  // Show/hide filter mode button (only visible when both filters are active)
+  const filterModeBtn = document.getElementById('timelineFilterModeBtn');
+  if (filterModeBtn) {
+    filterModeBtn.style.display = (timelineSelectedPerson && timelineSelectedTag) ? 'inline-block' : 'none';
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// TIMELINE LOADING & RENDERING
+// ───────────────────────────────────────────────────────────────
+
+async function loadAndRenderTimeline() {
   // Show loading state
   document.getElementById('timelineContent').innerHTML = `
     <div class="timeline-empty">
@@ -125,8 +313,8 @@ async function selectTimelinePerson(personId, personName) {
   `;
   
   try {
-    // Fetch notes for this person
-    await loadTimelineNotes(personId);
+    // Fetch notes based on selected filters
+    await loadTimelineNotes();
     
     // Render timeline
     renderTimeline();
@@ -145,7 +333,7 @@ async function selectTimelinePerson(personId, personName) {
   }
 }
 
-async function loadTimelineNotes(personId) {
+async function loadTimelineNotes() {
   // Ensure spreadsheet exists
   await ensureIndexSpreadsheet();
   
@@ -161,12 +349,28 @@ async function loadTimelineNotes(personId) {
   const data = await notesRes.json();
   const rows = data.values || [];
   
-  // Filter notes that mention this person
+  // Filter notes based on selected person and/or tag
   timelineNotes = rows
     .filter(row => {
       const peopleColumn = row[4] || ''; // Column E (index 4) is "people"
-      const peopleIds = peopleColumn.split(',').map(id => id.trim());
-      return peopleIds.includes(personId);
+      const tagsColumn = row[5] || ''; // Column F (index 5) is "tags"
+      
+      const peopleIds = peopleColumn.split(',').map(id => id.trim()).filter(id => id);
+      const noteTags = tagsColumn.split(',').map(t => t.trim()).filter(t => t);
+      
+      const matchesPerson = !timelineSelectedPerson || peopleIds.includes(timelineSelectedPerson.person_id);
+      const matchesTag = !timelineSelectedTag || noteTags.includes(timelineSelectedTag);
+      
+      // Apply AND/OR logic
+      if (timelineSelectedPerson && timelineSelectedTag) {
+        return timelineFilterMode === 'AND' ? (matchesPerson && matchesTag) : (matchesPerson || matchesTag);
+      } else if (timelineSelectedPerson) {
+        return matchesPerson;
+      } else if (timelineSelectedTag) {
+        return matchesTag;
+      }
+      
+      return false;
     })
     .map(row => ({
       id: row[0] || '',
@@ -187,6 +391,18 @@ async function loadTimelineNotes(personId) {
 function renderTimeline() {
   const content = document.getElementById('timelineContent');
   
+  // Generate header text based on selected filters
+  let headerText = 'Timeline';
+  if (timelineSelectedPerson && timelineSelectedTag) {
+    headerText = timelineFilterMode === 'AND' 
+      ? `${timelineSelectedPerson.name} + #${timelineSelectedTag}` 
+      : `${timelineSelectedPerson.name} or #${timelineSelectedTag}`;
+  } else if (timelineSelectedPerson) {
+    headerText = timelineSelectedPerson.name;
+  } else if (timelineSelectedTag) {
+    headerText = `#${timelineSelectedTag}`;
+  }
+  
   if (timelineNotes.length === 0) {
     content.innerHTML = `
       <div class="timeline-empty">
@@ -194,7 +410,7 @@ function renderTimeline() {
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
         </svg>
-        <p>No notes found for ${escHtml(timelineSelectedPerson.name)}</p>
+        <p>No notes found for ${escHtml(headerText)}</p>
       </div>
     `;
     return;
@@ -208,8 +424,20 @@ function renderTimeline() {
       return person ? person.name : null;
     }).filter(name => name);
     
-    const peopleHtml = peopleNames.length > 0
-      ? `<div class="timeline-people">${peopleNames.map(name => escHtml(name)).join(', ')}</div>`
+    // Get tags
+    const noteTags = note.tags ? note.tags.split(',').map(t => t.trim()).filter(t => t) : [];
+    
+    // Build metadata HTML (people and tags)
+    const metadataParts = [];
+    if (peopleNames.length > 0) {
+      metadataParts.push(`<span class="timeline-people-list">${peopleNames.map(name => escHtml(name)).join(', ')}</span>`);
+    }
+    if (noteTags.length > 0) {
+      metadataParts.push(`<span class="timeline-tags-list">${noteTags.map(tag => '#' + escHtml(tag)).join(' ')}</span>`);
+    }
+    
+    const metadataHtml = metadataParts.length > 0
+      ? `<div class="timeline-metadata">${metadataParts.join('<span class="timeline-separator">•</span>')}</div>`
       : '';
     
     return `
@@ -218,14 +446,14 @@ function renderTimeline() {
           <span class="timeline-date">${formatTimelineDate(note.updatedAt)}</span>
           <span class="timeline-title" onclick="openNoteFromTimeline('${note.id}')">${escHtml(note.title)}</span>
         </div>
-        ${peopleHtml}
+        ${metadataHtml}
       </div>
     `;
   }).join('');
   
   content.innerHTML = `
     <div class="timeline-container">
-      <div class="timeline-person-name">${escHtml(timelineSelectedPerson.name)}</div>
+      <div class="timeline-header-name">${escHtml(headerText)}</div>
       <div class="timeline-list">
         ${timelineItems}
       </div>

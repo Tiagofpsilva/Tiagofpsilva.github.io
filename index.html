@@ -305,20 +305,45 @@
             </svg>
             Back to Notes
           </button>
-          <h2>People Timeline</h2>
+          <h2>Timeline</h2>
         </div>
 
         <div class="timeline-search-wrapper">
-          <div class="timeline-search-container">
-            <input 
-              class="timeline-search-input" 
-              id="timelineSearchInput" 
-              placeholder="Search for a person..."
-              oninput="onTimelineSearchChange()"
-              onfocus="showTimelineDropdown()"
-              onblur="hideTimelineDropdownDelayed()"
-            >
-            <div class="timeline-people-dropdown" id="timelinePeopleDropdown"></div>
+          <div class="timeline-search-row">
+            <div class="timeline-search-container">
+              <input 
+                class="timeline-search-input" 
+                id="timelinePersonInput" 
+                placeholder="Search person..."
+                oninput="onTimelinePersonSearchChange()"
+                onfocus="showTimelinePeopleDropdown()"
+                onblur="hideTimelinePeopleDropdownDelayed()"
+              >
+              <div class="timeline-dropdown" id="timelinePeopleDropdown"></div>
+            </div>
+            
+            <div class="timeline-search-container">
+              <input 
+                class="timeline-search-input" 
+                id="timelineTagInput" 
+                placeholder="Search tag..."
+                oninput="onTimelineTagSearchChange()"
+                onfocus="showTimelineTagsDropdown()"
+                onblur="hideTimelineTagsDropdownDelayed()"
+              >
+              <div class="timeline-dropdown" id="timelineTagsDropdown"></div>
+            </div>
+          </div>
+          
+          <div class="timeline-filters-row">
+            <div class="timeline-selected-filters" id="timelineSelectedFilters"></div>
+            <button 
+              class="timeline-filter-mode-btn" 
+              id="timelineFilterModeBtn" 
+              onclick="toggleTimelineFilterMode()"
+              style="display:none"
+              title="Toggle between AND/OR filter mode"
+            >AND</button>
           </div>
         </div>
 
@@ -328,7 +353,7 @@
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
             </svg>
-            <p>Search for a person to see their timeline</p>
+            <p>Search for a person or tag to see their timeline</p>
           </div>
         </div>
       </div>
