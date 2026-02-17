@@ -60,6 +60,9 @@ function showAppInterface() {
     avatar.textContent = currentUser.email[0].toUpperCase();
   }
 
+  // Update mobile menu user info
+  updateMobileUserInfo();
+
   // Ensure Markpad folder exists, then load files
   ensureMarkpadFolder()
     .then(() => {

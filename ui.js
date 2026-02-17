@@ -57,6 +57,7 @@ function resetEditor() {
   document.getElementById('editorWrapper').style.display = 'none';
   document.getElementById('emptyState').style.display = 'flex';
   document.getElementById('saveBtn').style.display = 'none';
+  updateMobileSaveButton(false);
 }
 
 function setLoading(on) {
@@ -77,6 +78,10 @@ function setSaved() {
 function setSyncing(on) {
   const btn = document.getElementById('syncBtn');
   btn.classList.toggle('spinning', on);
+  const mobileBtn = document.getElementById('mobileSyncBtn');
+  if (mobileBtn) {
+    mobileBtn.classList.toggle('spinning', on);
+  }
 }
 
 function updateStats() {
@@ -95,3 +100,82 @@ function showToast(msg, isError = false) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// MOBILE INTERACTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  menu.classList.toggle('open');
+}
+
+function closeMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  menu.classList.remove('open');
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('sidebarToggle');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  
+  sidebar.classList.toggle('mobile-open');
+  toggle.classList.toggle('sidebar-open');
+  
+  if (backdrop) {
+    backdrop.classList.toggle('visible');
+  }
+}
+
+function closeSidebarOnMobile() {
+  // Close sidebar on mobile when a file is selected
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    
+    sidebar.classList.remove('mobile-open');
+    toggle.classList.remove('sidebar-open');
+    
+    if (backdrop) {
+      backdrop.classList.remove('visible');
+    }
+  }
+}
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('mobileMenu');
+  const burgerBtn = document.querySelector('.burger-btn');
+  if (menu && burgerBtn && !menu.contains(e.target) && !burgerBtn.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
+
+// Update mobile menu user info when user info changes
+function updateMobileUserInfo() {
+  if (currentUser) {
+    const avatar = document.getElementById('mobileUserAvatar');
+    const name = document.getElementById('mobileUserName');
+    const email = document.getElementById('mobileUserEmail');
+    
+    if (currentUser.picture) {
+      avatar.innerHTML = `<img src="${currentUser.picture}" alt="${currentUser.name}">`;
+    } else {
+      avatar.textContent = (currentUser.name || currentUser.email || '?')[0].toUpperCase();
+    }
+    
+    name.textContent = currentUser.name || currentUser.email;
+    email.textContent = currentUser.email;
+  }
+}
+
+// Update mobile save button visibility
+function updateMobileSaveButton(visible) {
+  const mobileSaveBtn = document.getElementById('mobileSaveBtn');
+  if (mobileSaveBtn) {
+    mobileSaveBtn.style.display = visible ? 'flex' : 'none';
+  }
+}
+

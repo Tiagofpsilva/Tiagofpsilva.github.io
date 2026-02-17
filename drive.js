@@ -122,6 +122,9 @@ async function selectFile(id) {
 
   // Show editor
   showEditor();
+  
+  // Close sidebar on mobile
+  closeSidebarOnMobile();
 
   // Set title (display name only, without ID)
   const displayName = extractDisplayName(file.name);
@@ -140,6 +143,7 @@ async function selectFile(id) {
     updateStats();
     setSaved();
     document.getElementById('saveBtn').style.display = 'flex';
+    updateMobileSaveButton(true);
     
     // Load people for this note
     const fileId = extractFileId(file.name);

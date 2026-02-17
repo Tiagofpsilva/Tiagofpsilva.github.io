@@ -19,6 +19,9 @@ function showTimelineView() {
   const timelineView = document.getElementById('timelineView');
   timelineView.style.display = 'flex';
   
+  // Close sidebar on mobile
+  closeSidebarOnMobile();
+  
   // Reset timeline
   timelineSelectedPerson = null;
   timelineNotes = [];
@@ -40,6 +43,9 @@ function hideTimelineView() {
   
   // Show empty state (user can then select a note)
   document.getElementById('emptyState').style.display = 'flex';
+  
+  // Close sidebar on mobile
+  closeSidebarOnMobile();
 }
 
 // ───────────────────────────────────────────────────────────────
