@@ -21,9 +21,10 @@ async function ensureIndexSpreadsheet() {
       );
       const sheetData = await sheetRes.json();
       
-      // Check if "notes" and "people" sheets exist
+      // Check if "notes", "people", and "tags" sheets exist
       const hasNotesSheet = sheetData.sheets?.some(s => s.properties.title === 'notes');
       const hasPeopleSheet = sheetData.sheets?.some(s => s.properties.title === 'people');
+      const hasTagsSheet = sheetData.sheets?.some(s => s.properties.title === 'tags');
       
       const sheetsToAdd = [];
       if (!hasNotesSheet) {
@@ -31,7 +32,7 @@ async function ensureIndexSpreadsheet() {
           addSheet: {
             properties: {
               title: 'notes',
-              gridProperties: { rowCount: 1000, columnCount: 5 }
+              gridProperties: { rowCount: 1000, columnCount: 6 }
             }
           }
         });
@@ -42,6 +43,16 @@ async function ensureIndexSpreadsheet() {
             properties: {
               title: 'people',
               gridProperties: { rowCount: 1000, columnCount: 2 }
+            }
+          }
+        });
+      }
+      if (!hasTagsSheet) {
+        sheetsToAdd.push({
+          addSheet: {
+            properties: {
+              title: 'tags',
+              gridProperties: { rowCount: 1000, columnCount: 1 }
             }
           }
         });
@@ -68,12 +79,16 @@ async function ensureIndexSpreadsheet() {
             valueInputOption: 'RAW',
             data: [
               {
-                range: 'notes!A1:E1',
-                values: [['id', 'title', 'createdAt', 'updatedAt', 'people']]
+                range: 'notes!A1:F1',
+                values: [['id', 'title', 'createdAt', 'updatedAt', 'people', 'tags']]
               },
               {
                 range: 'people!A1:B1',
                 values: [['person_id', 'name']]
+              },
+              {
+                range: 'tags!A1',
+                values: [['name']]
               }
             ]
           })
@@ -112,12 +127,16 @@ async function ensureIndexSpreadsheet() {
             valueInputOption: 'RAW',
             data: [
               {
-                range: 'notes!A1:E1',
-                values: [['id', 'title', 'createdAt', 'updatedAt', 'people']]
+                range: 'notes!A1:F1',
+                values: [['id', 'title', 'createdAt', 'updatedAt', 'people', 'tags']]
               },
               {
                 range: 'people!A1:B1',
                 values: [['person_id', 'name']]
+              },
+              {
+                range: 'tags!A1',
+                values: [['name']]
               }
             ]
           })
@@ -144,7 +163,7 @@ async function ensureIndexSpreadsheet() {
                 title: 'notes',
                 gridProperties: {
                   rowCount: 1000,
-                  columnCount: 5
+                  columnCount: 6
                 }
               }
             },
@@ -154,6 +173,15 @@ async function ensureIndexSpreadsheet() {
                 gridProperties: {
                   rowCount: 1000,
                   columnCount: 2
+                }
+              }
+            },
+            {
+              properties: {
+                title: 'tags',
+                gridProperties: {
+                  rowCount: 1000,
+                  columnCount: 1
                 }
               }
             }
@@ -184,12 +212,16 @@ async function ensureIndexSpreadsheet() {
           valueInputOption: 'RAW',
           data: [
             {
-              range: 'notes!A1:E1',
-              values: [['id', 'title', 'createdAt', 'updatedAt', 'people']]
+              range: 'notes!A1:F1',
+              values: [['id', 'title', 'createdAt', 'updatedAt', 'people', 'tags']]
             },
             {
               range: 'people!A1:B1',
               values: [['person_id', 'name']]
+            },
+            {
+              range: 'tags!A1',
+              values: [['name']]
             }
           ]
         })
@@ -310,17 +342,47 @@ async function getPeopleForNote(noteId) {
 }
 
 // ───────────────────────────────────────────────────────────────
+// GET TAGS FOR A NOTE
+// ───────────────────────────────────────────────────────────────
+async function getTagsForNote(noteId) {
+  try {
+    await ensureIndexSpreadsheet();
+
+    const rowNumber = await findNoteRowById(noteId);
+    if (!rowNumber) return [];
+
+    // Get the tags column (column F) for this row
+    const res = await sheetsRequest(
+      `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/notes!F${rowNumber}`
+    );
+    const data = await res.json();
+
+    if (!data.values || !data.values[0] || !data.values[0][0]) return [];
+
+    // Parse comma-separated tag names
+    const tags = data.values[0][0].split(',').map(tag => tag.trim()).filter(tag => tag);
+
+    console.log('✓ Got tags for note:', noteId, tags);
+    return tags;
+  } catch (e) {
+    console.error('Failed to get tags for note:', e);
+    return [];
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
 // ADD NEW NOTE TO SPREADSHEET
 // ───────────────────────────────────────────────────────────────
-async function addNoteToSheet(noteId, title, peopleIds = []) {
-  console.log('📝 Adding note to sheet:', noteId, title, peopleIds);
+async function addNoteToSheet(noteId, title, peopleIds = [], tags = []) {
+  console.log('📝 Adding note to sheet:', noteId, title, peopleIds, tags);
   try {
     await ensureIndexSpreadsheet();
     console.log('✓ Spreadsheet ensured:', indexSpreadsheetId);
 
     const now = new Date().toISOString();
     const peopleStr = peopleIds.join(',');
-    const values = [[noteId, title, now, now, peopleStr]];
+    const tagsStr = tags.join(',');
+    const values = [[noteId, title, now, now, peopleStr, tagsStr]];
     console.log('📊 Appending values:', values);
 
     const response = await sheetsRequest(
@@ -345,8 +407,8 @@ async function addNoteToSheet(noteId, title, peopleIds = []) {
 // ───────────────────────────────────────────────────────────────
 // UPDATE EXISTING NOTE IN SPREADSHEET
 // ───────────────────────────────────────────────────────────────
-async function updateNoteInSheet(noteId, newTitle, peopleIds = []) {
-  console.log('✏️ Updating note in sheet:', noteId, newTitle, peopleIds);
+async function updateNoteInSheet(noteId, newTitle, peopleIds = [], tags = []) {
+  console.log('✏️ Updating note in sheet:', noteId, newTitle, peopleIds, tags);
   try {
     await ensureIndexSpreadsheet();
     console.log('✓ Spreadsheet ensured:', indexSpreadsheetId);
@@ -356,13 +418,13 @@ async function updateNoteInSheet(noteId, newTitle, peopleIds = []) {
     
     if (!rowNumber) {
       // Note not found in sheet, add it as new
-      await addNoteToSheet(noteId, newTitle, peopleIds);
+      await addNoteToSheet(noteId, newTitle, peopleIds, tags);
       return;
     }
 
     // Get current row data to check if anything changed
     const getRes = await sheetsRequest(
-      `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/notes!A${rowNumber}:E${rowNumber}`
+      `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/notes!A${rowNumber}:F${rowNumber}`
     );
     const getData = await getRes.json();
     
@@ -370,15 +432,17 @@ async function updateNoteInSheet(noteId, newTitle, peopleIds = []) {
 
     const currentTitle = getData.values[0][1];
     const currentPeople = getData.values[0][4] || '';
+    const currentTags = getData.values[0][5] || '';
     const newPeopleStr = peopleIds.join(',');
+    const newTagsStr = tags.join(',');
     
-    // Update if title or people changed
-    if (currentTitle !== newTitle || currentPeople !== newPeopleStr) {
+    // Update if title, people, or tags changed
+    if (currentTitle !== newTitle || currentPeople !== newPeopleStr || currentTags !== newTagsStr) {
       const now = new Date().toISOString();
-      const values = [[noteId, newTitle, getData.values[0][2], now, newPeopleStr]]; // Preserve createdAt
+      const values = [[noteId, newTitle, getData.values[0][2], now, newPeopleStr, newTagsStr]]; // Preserve createdAt
 
       await sheetsRequest(
-        `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/notes!A${rowNumber}:E${rowNumber}?valueInputOption=RAW`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/notes!A${rowNumber}:F${rowNumber}?valueInputOption=RAW`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -497,4 +561,91 @@ async function findOrCreatePerson(name) {
 
   // Create new person
   return await addPersonToSheet(trimmedName);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAGS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+let cachedTags = null;
+
+// ───────────────────────────────────────────────────────────────
+// FETCH ALL TAGS
+// ───────────────────────────────────────────────────────────────
+async function fetchAllTags() {
+  try {
+    await ensureIndexSpreadsheet();
+
+    const res = await sheetsRequest(
+      `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/tags!A2:A`
+    );
+    const data = await res.json();
+
+    if (!data.values) {
+      cachedTags = [];
+      return [];
+    }
+
+    cachedTags = data.values.map(row => row[0] || '').filter(name => name);
+
+    console.log('✓ Fetched tags:', cachedTags.length);
+    return cachedTags;
+  } catch (e) {
+    console.error('Failed to fetch tags:', e);
+    return cachedTags || [];
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// ADD NEW TAG
+// ───────────────────────────────────────────────────────────────
+async function addTagToSheet(name) {
+  try {
+    await ensureIndexSpreadsheet();
+
+    const values = [[name]];
+
+    await sheetsRequest(
+      `https://sheets.googleapis.com/v4/spreadsheets/${indexSpreadsheetId}/values/tags:append?valueInputOption=RAW`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      }
+    );
+
+    console.log('✓ Added tag to spreadsheet:', name);
+    
+    // Update cache
+    if (cachedTags) {
+      cachedTags.push(name);
+    }
+
+    return name;
+  } catch (e) {
+    console.error('Failed to add tag to sheet:', e);
+    throw e;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// FIND OR CREATE TAG
+// ───────────────────────────────────────────────────────────────
+async function findOrCreateTag(name) {
+  const trimmedName = name.trim();
+  if (!trimmedName) return null;
+
+  // Check cache first
+  if (!cachedTags) {
+    await fetchAllTags();
+  }
+
+  // Find existing tag (case-insensitive)
+  const existing = cachedTags.find(t => t.toLowerCase() === trimmedName.toLowerCase());
+  if (existing) {
+    return existing;
+  }
+
+  // Create new tag
+  return await addTagToSheet(trimmedName);
 }

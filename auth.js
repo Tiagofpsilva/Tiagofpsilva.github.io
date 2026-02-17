@@ -71,6 +71,13 @@ function showAppInterface() {
       }).catch(e => {
         console.error('Failed to preload people:', e);
       });
+      // Load tags cache in background
+      fetchAllTags().then(tags => {
+        allTags = tags;
+        console.log('✓ Preloaded tags cache:', allTags.length);
+      }).catch(e => {
+        console.error('Failed to preload tags:', e);
+      });
     })
     .catch(e => {
       console.error('Failed to initialize Markpad folder:', e);

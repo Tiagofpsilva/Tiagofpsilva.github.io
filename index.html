@@ -189,6 +189,22 @@
           </div>
         </div>
         
+        <div class="tags-bar">
+          <div class="tags-input-wrapper">
+            <div class="tags-chips" id="tagsChips"></div>
+            <input 
+              class="tags-input" 
+              id="tagsInput" 
+              placeholder="Add tags..."
+              oninput="onTagsInputChange()"
+              onkeydown="onTagsInputKeydown(event)"
+              onfocus="showTagsDropdown()"
+              onblur="hideTagsDropdownDelayed()"
+            >
+            <div class="tags-dropdown" id="tagsDropdown"></div>
+          </div>
+        </div>
+        
         <div class="title-divider"></div>
 
         <div class="editor-scroll">
@@ -457,9 +473,13 @@ async function selectFile(id) {
     if (fileId) {
       selectedPeople = await getPeopleForNote(fileId);
       renderPeopleChips();
+      selectedTags = await getTagsForNote(fileId);
+      renderTagsChips();
     } else {
       selectedPeople = [];
       renderPeopleChips();
+      selectedTags = [];
+      renderTagsChips();
     }
   } catch(e) {
     if (e.message !== 'Unauthorized') showToast('Could not load file content', true);
@@ -607,7 +627,7 @@ async function saveFile() {
     
     // Update note in spreadsheet index
     const peopleIds = selectedPeople.map(p => p.person_id);
-    await updateNoteInSheet(fileId, titleVal, peopleIds);
+    await updateNoteInSheet(fileId, titleVal, peopleIds, selectedTags);
   } catch(e) {
     console.error('Save error:', e);
     if (e.message === 'Unauthorized') {
@@ -687,7 +707,7 @@ async function createNewFile() {
     // Add note to spreadsheet index
     console.log('🔄 About to add note to sheet with ID:', fileId, 'and title:', rawName);
     const peopleIds = selectedPeople.map(p => p.person_id);
-    await addNoteToSheet(fileId, rawName, peopleIds);
+    await addNoteToSheet(fileId, rawName, peopleIds, selectedTags);
     console.log('✅ Note sheet operation completed');
     
     await selectFile(newFile.id);
@@ -907,6 +927,135 @@ function hidePeopleDropdownDelayed() {
   }, 200);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TAGS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+function renderTagsChips() {
+  const container = document.getElementById('tagsChips');
+  if (!container) return;
+  
+  container.innerHTML = selectedTags.map(tag => `
+    <div class="tag-chip">
+      <span>${tag}</span>
+      <span class="tag-chip-remove" onclick="removeTag('${tag.replace(/'/g, "\\\'")}')" onmousedown="event.preventDefault()">×</span>
+    </div>
+  `).join('');
+}
+
+function removeTag(tagName) {
+  selectedTags = selectedTags.filter(t => t !== tagName);
+  renderTagsChips();
+  markDirty();
+}
+
+async function onTagsInputChange() {
+  const input = document.getElementById('tagsInput');
+  const query = input.value.toLowerCase().trim();
+  
+  if (!query) {
+    document.getElementById('tagsDropdown').innerHTML = '';
+    document.getElementById('tagsDropdown').classList.remove('open');
+    return;
+  }
+  
+  // Fetch tags if not cached
+  if (allTags.length === 0) {
+    allTags = await fetchAllTags();
+  }
+  
+  // Filter tags by query, excluding already selected
+  const filtered = allTags.filter(t => 
+    !selectedTags.includes(t) && 
+    t.toLowerCase().includes(query)
+  );
+  
+  renderTagsDropdown(filtered, query);
+}
+
+function renderTagsDropdown(tags, query) {
+  const dropdown = document.getElementById('tagsDropdown');
+  
+  if (tags.length === 0) {
+    dropdown.innerHTML = `<div class="tags-dropdown-item" onmousedown="addNewTag('${query}')">
+      + Create "${query}"
+    </div>`;
+  } else {
+    dropdown.innerHTML = tags.map(t => `
+      <div class="tags-dropdown-item" onmousedown="selectTag('${t.replace(/'/g, "\\'")}')">
+        ${t}
+      </div>
+    `).join('');
+    
+    // Add option to create new at the end
+    dropdown.innerHTML += `<div class="tags-dropdown-item" onmousedown="addNewTag('${query}')">
+      + Create "${query}"
+    </div>`;
+  }
+  
+  dropdown.classList.add('open');
+}
+
+function selectTag(tagName) {
+  // Check if already selected
+  if (selectedTags.includes(tagName)) return;
+  
+  selectedTags.push(tagName);
+  renderTagsChips();
+  document.getElementById('tagsInput').value = '';
+  document.getElementById('tagsDropdown').classList.remove('open');
+  markDirty();
+}
+
+async function addNewTag(name) {
+  const trimmedName = name.trim();
+  if (!trimmedName) return;
+  
+  try {
+    const newTag = await findOrCreateTag(trimmedName);
+    if (newTag && !selectedTags.includes(newTag)) {
+      selectedTags.push(newTag);
+      renderTagsChips();
+      
+      // Update allTags cache
+      if (!allTags.includes(newTag)) {
+        allTags.push(newTag);
+      }
+    }
+    
+    document.getElementById('tagsInput').value = '';
+    document.getElementById('tagsDropdown').classList.remove('open');
+    markDirty();
+  } catch (e) {
+    showToast('Could not add tag', true);
+  }
+}
+
+function onTagsInputKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const input = document.getElementById('tagsInput');
+    const query = input.value.trim();
+    if (query) {
+      addNewTag(query);
+    }
+  }
+}
+
+function showTagsDropdown() {
+  const input = document.getElementById('tagsInput');
+  if (input.value.trim()) {
+    onTagsInputChange();
+  }
+}
+
+let tagsDropdownHideTimeout;
+function hideTagsDropdownDelayed() {
+  tagsDropdownHideTimeout = setTimeout(() => {
+    document.getElementById('tagsDropdown').classList.remove('open');
+  }, 200);
+}
+
 function setMode(mode) {
   currentMode = mode;
   const wysiwyg = document.getElementById('wysiwygEditor');
@@ -952,9 +1101,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideContex
 // MODALS
 // ═══════════════════════════════════════════════════════════════
 function openNewModal() {
-  // Clear selected people for new note
+  // Clear selected people and tags for new note
   selectedPeople = [];
   renderPeopleChips();
+  selectedTags = [];
+  renderTagsChips();
   
   document.getElementById('newModal').classList.add('open');
   document.getElementById('newFileName').value = '';
@@ -999,6 +1150,8 @@ function resetEditor() {
   isDirty = false;
   selectedPeople = [];
   renderPeopleChips();
+  selectedTags = [];
+  renderTagsChips();
   document.getElementById('editorWrapper').style.display = 'none';
   document.getElementById('emptyState').style.display = 'flex';
   document.getElementById('saveBtn').style.display = 'none';
