@@ -1117,7 +1117,7 @@ function signIn() {
     showToast('Google Sign-In is still loading. Try again in a moment.', true);
     return;
   }
-  tokenClient.requestAccessToken({ prompt: 'select_account' });
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 async function handleTokenResponse(resp) {
