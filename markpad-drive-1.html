@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markpad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep:     #12110f;
+    --bg-sidebar:  #1a1915;
+    --bg-sidebar2: #1f1e1a;
+    --bg-editor:   #f5f0e8;
+    --border:      #2e2c26;
+    --border-light:#d6ceb8;
+    --accent:      #c9a84c;
+    --accent-dim:  #7a6430;
+    --text-main:   #e8e2d6;
+    --text-muted:  #8a8070;
+    --text-faint:  #4a4640;
+    --editor-text: #2a2420;
+    --editor-sub:  #6a5f52;
+    --tag-bg:      #26231e;
+    --sel-bg:      #c9a84c22;
+    --danger:      #c0604a;
+    --green:       #6aaa7a;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── LOGIN SCREEN ─────────────────────────── */
+  #loginScreen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .login-card {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 48px 44px;
+    width: 380px;
+    text-align: center;
+    animation: fadeUp 0.5s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .login-logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+  }
+
+  .login-tagline {
+    font-family: 'Lora', serif;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-muted);
+    margin-bottom: 36px;
+  }
+
+  .login-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  .login-info {
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.6;
+    font-family: 'Lora', serif;
+  }
+
+  .google-btn {
+    width: 100%;
+    background: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1510;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .google-btn:hover { background: #f0f0f0; box-shadow: 0 4px 14px rgba(0,0,0,0.4); transform: translateY(-1px); }
+  .google-btn:active { transform: translateY(0); }
+
+  .google-btn svg { flex-shrink: 0; }
+
+  /* ── CONFIG BANNER ────────────────────────── */
+  #configBanner {
+    display: none;
+    background: #3a1a0a;
+    border: 1px solid #7a3010;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+
+  #configBanner h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f0a070;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #configBanner p {
+    font-size: 11px;
+    color: #c08060;
+    line-height: 1.6;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── TOP BAR ─────────────────────────────── */
+  .topbar {
+    height: 48px;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 20;
+  }
+
+  .topbar-logo {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    user-select: none;
+  }
+
+  .drive-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg-sidebar2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px 3px 7px;
+    letter-spacing: 0.02em;
+  }
+
+  .drive-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .user-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    overflow: hidden;
+  }
+
+  .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .topbar-spacer { flex: 1; }
+
+  .topbar-btn {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .topbar-btn:hover { color: var(--text-main); border-color: var(--text-faint); }
+  .topbar-btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1510; font-weight: 700; }
+  .topbar-btn.primary:hover { background: #d4b060; }
+  .topbar-btn.spinning svg { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* ── LAYOUT ─────────────────────────────── */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ────────────────────────────── */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h2 {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  .search-wrap { position: relative; }
+
+  .search-wrap svg {
+    position: absolute;
+    left: 9px; top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    padding: 6px 10px 6px 30px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-input:focus { border-color: var(--accent-dim); }
+  .search-input::placeholder { color: var(--text-faint); }
+
+  .file-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .file-list::-webkit-scrollbar { width: 4px; }
+  .file-list::-webkit-scrollbar-track { background: transparent; }
+  .file-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .file-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-left: 2px solid transparent;
+  }
+
+  .file-item:hover { background: var(--bg-sidebar2); }
+  .file-item.active { background: var(--bg-sidebar2); border-left-color: var(--accent); }
+
+  .file-icon {
+    width: 28px; height: 28px;
+    background: var(--tag-bg);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    margin-top: 1px;
+  }
+
+  .file-meta { flex: 1; min-width: 0; }
+
+  .file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+
+  .file-item.active .file-name { color: var(--accent); }
+
+  .file-info {
+    font-size: 10px;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .file-preview {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+    font-family: 'Lora', serif;
+    font-style: italic;
+  }
+
+  .sidebar-loading {
+    padding: 20px 14px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: 'Lora', serif;
+    font-style: italic;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .sidebar-empty {
+    padding: 24px 14px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: 'Lora', serif;
+    font-style: italic;
+    line-height: 1.6;
+  }
+
+  .sidebar-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .new-note-btn {
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--border);
+    color: var(--text-faint);
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .new-note-btn:hover { border-color: var(--accent-dim); color: var(--accent); background: var(--sel-bg); }
+
+  /* ── EDITOR AREA ─────────────────────────── */
+  .editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-editor);
+  }
+
+  .editor-topbar {
+    background: #ede8de;
+    border-bottom: 1px solid var(--border-light);
+    padding: 0 24px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 0 6px;
+    border-right: 1px solid var(--border-light);
+  }
+
+  .toolbar-group:last-of-type { border-right: none; }
+
+  .tb-btn {
+    width: 30px; height: 30px;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--editor-sub);
+    font-size: 13px;
+    transition: all 0.12s;
+    font-family: 'Lora', serif;
+    font-weight: 700;
+  }
+
+  .tb-btn:hover { background: rgba(0,0,0,0.08); color: var(--editor-text); }
+
+  .mode-toggle {
+    margin-left: auto;
+    display: flex;
+    background: rgba(0,0,0,0.07);
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .mode-btn {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+    color: var(--editor-sub);
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active { background: white; color: var(--editor-text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+  .file-title-bar {
+    padding: 24px 48px 0;
+    background: var(--bg-editor);
+    flex-shrink: 0;
+  }
+
+  .file-title-input {
+    width: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: 'Lora', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--editor-text);
+    line-height: 1.2;
+  }
+
+  .file-title-input::placeholder { color: #c0b8a8; }
+
+  .file-path {
+    margin-top: 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: #b0a890;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .title-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 16px 48px 0;
+  }
+
+  .editor-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 48px 60px;
+  }
+
+  .editor-scroll::-webkit-scrollbar { width: 6px; }
+  .editor-scroll::-webkit-scrollbar-track { background: transparent; }
+  .editor-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+  .wysiwyg-editor {
+    min-height: 400px;
+    outline: none;
+    font-family: 'Lora', serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: var(--editor-text);
+    caret-color: var(--accent);
+  }
+
+  .wysiwyg-editor:empty::before {
+    content: 'Start writing…';
+    color: #c0b8a8;
+    pointer-events: none;
+  }
+
+  .wysiwyg-editor h1, .wysiwyg-editor h2, .wysiwyg-editor h3 {
+    font-family: 'Lora', serif;
+    color: var(--editor-text);
+    line-height: 1.3;
+    margin: 24px 0 10px;
+  }
+
+  .wysiwyg-editor h1 { font-size: 26px; font-weight: 600; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; }
+  .wysiwyg-editor h2 { font-size: 20px; font-weight: 600; }
+  .wysiwyg-editor h3 { font-size: 17px; font-weight: 500; }
+  .wysiwyg-editor p { margin-bottom: 12px; }
+  .wysiwyg-editor strong { color: #1a1510; }
+  .wysiwyg-editor em { font-style: italic; color: #4a3f34; }
+
+  .wysiwyg-editor code {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: rgba(0,0,0,0.06);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #7a3020;
+  }
+
+  .wysiwyg-editor pre {
+    background: #2a2420;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+
+  .wysiwyg-editor pre code { background: none; border: none; color: #d4c8b0; font-size: 13px; padding: 0; }
+  .wysiwyg-editor blockquote { border-left: 3px solid var(--accent); margin: 16px 0; padding: 4px 0 4px 20px; color: var(--editor-sub); font-style: italic; }
+  .wysiwyg-editor ul, .wysiwyg-editor ol { padding-left: 24px; margin-bottom: 12px; }
+  .wysiwyg-editor li { margin-bottom: 4px; }
+  .wysiwyg-editor a { color: #8a6a20; text-decoration: underline; }
+  .wysiwyg-editor hr { border: none; border-top: 1px solid var(--border-light); margin: 24px 0; }
+
+  .raw-editor {
+    display: none;
+    min-height: 400px;
+    width: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--editor-text);
+    resize: none;
+    white-space: pre-wrap;
+    caret-color: var(--accent);
+  }
+
+  .raw-editor.visible { display: block; }
+  .wysiwyg-editor.hidden { display: none; }
+
+  .status-bar {
+    height: 26px;
+    background: #ede8de;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    padding: 0 48px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  .status-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--editor-sub);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .saved-indicator {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--green);
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 0.3s;
+  }
+
+  .saving-indicator {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    margin-left: auto;
+    display: none;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-editor);
+    color: var(--editor-sub);
+    gap: 12px;
+    text-align: center;
+  }
+
+  .empty-state-icon { font-size: 40px; opacity: 0.3; }
+
+  .empty-state h3 {
+    font-family: 'Lora', serif;
+    font-size: 18px;
+    color: #b0a890;
+    font-weight: 400;
+  }
+
+  .empty-state p {
+    font-size: 12px;
+    color: #c0b8a8;
+    max-width: 260px;
+    line-height: 1.6;
+    font-family: 'Lora', serif;
+    font-style: italic;
+  }
+
+  /* ── MODAL ─────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    width: 380px;
+    animation: modalIn 0.2s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .modal h3 { font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+
+  .modal p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .modal input {
+    width: 100%;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.15s;
+  }
+
+  .modal input:focus { border-color: var(--accent-dim); }
+
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Delete confirm modal */
+  .modal.danger-modal .modal-actions .topbar-btn.danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+  }
+
+  /* ── CONTEXT MENU ──────────────────────── */
+  .context-menu {
+    position: fixed;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px;
+    z-index: 500;
+    min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: fadeIn 0.1s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+
+  .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.1s;
+  }
+
+  .ctx-item:hover { background: var(--bg-sidebar2); color: var(--text-main); }
+  .ctx-item.danger:hover { background: rgba(192,96,74,0.15); color: var(--danger); }
+
+  /* ── TOAST ─────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 200;
+    transform: translateY(60px);
+    opacity: 0;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 320px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     ⚠️  CONFIGURATION — PASTE YOUR CLIENT ID
+     ══════════════════════════════════════════ -->
+<script>
+  // 1. Replace this with your OAuth Client ID from Google Cloud Console
+  // 2. Make sure http://localhost:PORT and your Cloudflare domain are in
+  //    Authorized JavaScript Origins in GCP
+  const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com';
+
+  // Optional: restrict to a specific Google Workspace domain
+  // e.g. 'yourcompany.com' — leave empty to allow any Google account
+  const ALLOWED_DOMAIN = '';
+
+  // Optional: allowlist specific emails (leave empty array to skip)
+  const ALLOWED_EMAILS = [];
+  // Example: const ALLOWED_EMAILS = ['you@gmail.com', 'friend@gmail.com'];
+</script>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div id="configBanner">
+      <h4>⚠ Setup required</h4>
+      <p>Open this file and replace<br><strong>YOUR_CLIENT_ID_HERE</strong><br>with your Google OAuth Client ID.</p>
+    </div>
+    <div class="login-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Markpad
+    </div>
+    <div class="login-tagline">Your markdown notes, backed by Google Drive.</div>
+
+    <button class="google-btn" onclick="signIn()">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Sign in with Google
+    </button>
+
+    <div class="login-divider"></div>
+    <div class="login-info">Markpad reads and writes <strong style="color:var(--text-muted)">.md files</strong> in your Google Drive. Your files are only accessible to you.</div>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until signed in) -->
+<div id="appShell" style="display:none; flex-direction:column; height:100%;">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Markpad
+    </div>
+
+    <div class="drive-badge">
+      <div class="drive-dot"></div>
+      Google Drive
+    </div>
+
+    <div class="topbar-spacer"></div>
+
+    <div class="user-badge">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span id="userEmail" style="font-size:11px; color:var(--text-faint)"></span>
+    </div>
+
+    <button class="topbar-btn" id="syncBtn" onclick="loadFiles()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      Sync
+    </button>
+
+    <button class="topbar-btn" onclick="signOut()" style="color:var(--text-faint)">Sign out</button>
+
+    <button class="topbar-btn primary" id="saveBtn" onclick="saveFile()" style="display:none">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save
+    </button>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebarTitle">My Drive · .md files</h2>
+        <div class="search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input class="search-input" id="searchInput" placeholder="Search notes…" oninput="filterFiles(this.value)">
+        </div>
+      </div>
+
+      <div class="file-list" id="fileList">
+        <div class="sidebar-loading">
+          <div class="spinner"></div>
+          Loading…
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="new-note-btn" onclick="openNewModal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New Note
+        </button>
+      </div>
+    </div>
+
+    <!-- EDITOR AREA -->
+    <div class="editor-area" id="editorArea">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📄</div>
+        <h3>Select a note to start writing</h3>
+        <p>Your .md files from Google Drive appear in the sidebar.</p>
+      </div>
+
+      <div id="editorWrapper" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+        <div class="editor-topbar">
+          <div class="toolbar-group">
+            <button class="tb-btn" onclick="execFmt('formatBlock','H1')">H1</button>
+            <button class="tb-btn" onclick="execFmt('formatBlock','H2')">H2</button>
+            <button class="tb-btn" onclick="execFmt('formatBlock','H3')">H3</button>
+          </div>
+          <div class="toolbar-group">
+            <button class="tb-btn" style="font-weight:800" onclick="execFmt('bold')"><b>B</b></button>
+            <button class="tb-btn" style="font-style:italic" onclick="execFmt('italic')"><i>I</i></button>
+            <button class="tb-btn" onclick="execFmt('strikeThrough')"><s>S</s></button>
+          </div>
+          <div class="toolbar-group">
+            <button class="tb-btn" onclick="execFmt('insertUnorderedList')" title="Bullet list">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+            <button class="tb-btn" onclick="execFmt('insertOrderedList')" title="Numbered list">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/>
+                <line x1="10" y1="18" x2="21" y2="18"/>
+                <path d="M4 6h1v4"/><path d="M4 10h2"/>
+              </svg>
+            </button>
+            <button class="tb-btn" onclick="execFmt('formatBlock','BLOCKQUOTE')" title="Blockquote">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/>
+                <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="mode-toggle">
+            <button class="mode-btn active" id="modeWysiwyg" onclick="setMode('wysiwyg')">Rich</button>
+            <button class="mode-btn" id="modeRaw" onclick="setMode('raw')">Markdown</button>
+          </div>
+        </div>
+
+        <div class="file-title-bar">
+          <input class="file-title-input" id="fileTitleInput" placeholder="Untitled note" oninput="onTitleChange()">
+          <div class="file-path" id="filePath"></div>
+        </div>
+        <div class="title-divider"></div>
+
+        <div class="editor-scroll">
+          <div class="wysiwyg-editor" id="wysiwygEditor" contenteditable="true" oninput="onEditorChange()"></div>
+          <textarea class="raw-editor" id="rawEditor" oninput="onRawChange()" placeholder="# Your markdown here…"></textarea>
+        </div>
+
+        <div class="status-bar">
+          <div class="status-pill" id="wordCount">0 words</div>
+          <div class="status-pill" id="charCount">0 chars</div>
+          <div class="saving-indicator" id="savingIndicator">
+            <div class="spinner" style="width:10px;height:10px;border-width:1.5px;border-color:rgba(201,168,76,0.3);border-top-color:var(--accent)"></div>
+            Saving…
+          </div>
+          <div class="saved-indicator" id="savedIndicator">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Saved to Drive
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW NOTE MODAL -->
+<div class="modal-overlay" id="newModal">
+  <div class="modal">
+    <h3>New Note</h3>
+    <p>Creates a new <code style="font-family:monospace;font-size:11px;color:#c9a84c">.md</code> file in your Google Drive root.</p>
+    <input type="text" id="newFileName" placeholder="my-note" oninput="updateNewFilePreview()" onkeydown="if(event.key==='Enter') createNewFile()">
+    <div class="file-path" id="newFilePreview" style="margin-bottom:16px;font-size:11px;color:#8a8070">
+      Drive / <span id="newFileNamePreview">my-note</span>.md
+    </div>
+    <div class="modal-actions">
+      <button class="topbar-btn" onclick="closeModal('newModal')">Cancel</button>
+      <button class="topbar-btn primary" onclick="createNewFile()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal danger-modal">
+    <h3>Delete note?</h3>
+    <p id="deleteModalMsg">This will permanently delete the file from your Google Drive. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="topbar-btn" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="topbar-btn danger" onclick="confirmDelete()">Delete from Drive</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="context-menu" id="contextMenu" style="display:none">
+  <div class="ctx-item" onclick="ctxRename()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+    Rename
+  </div>
+  <div class="ctx-item danger" onclick="ctxDelete()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>
+    Delete from Drive
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let accessToken = null;
+let currentUser = null;
+let files = [];            // [{id, name, modifiedTime, size}]
+let activeFileId = null;
+let activeFileContent = '';// raw markdown source of truth
+let currentMode = 'wysiwyg';
+let isDirty = false;
+let saveTimer = null;
+let ctxTargetId = null;
+let deleteTargetId = null;
+let tokenClient = null;
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+window.onload = () => {
+  // Check config
+  if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com') {
+    document.getElementById('configBanner').style.display = 'block';
+  }
+
+  // Wait for GIS to load then set up token client
+  const initGIS = () => {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file email profile',
+      callback: handleTokenResponse,
+    });
+  };
+
+  if (typeof google !== 'undefined') {
+    initGIS();
+  } else {
+    // GIS script still loading
+    const script = document.querySelector('script[src*="accounts.google.com/gsi"]');
+    script.addEventListener('load', initGIS);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
+function signIn() {
+  if (!tokenClient) {
+    showToast('Google Sign-In is still loading. Try again in a moment.', true);
+    return;
+  }
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
+}
+
+async function handleTokenResponse(resp) {
+  if (resp.error) {
+    showToast('Sign-in failed: ' + resp.error, true);
+    return;
+  }
+
+  accessToken = resp.access_token;
+
+  // Fetch user profile
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    currentUser = await r.json();
+  } catch(e) {
+    showToast('Could not fetch user profile', true);
+    return;
+  }
+
+  // Check allowlist
+  if (!isAllowed(currentUser.email)) {
+    showToast(`Access denied for ${currentUser.email}`, true);
+    google.accounts.oauth2.revoke(accessToken);
+    accessToken = null;
+    return;
+  }
+
+  // Show app
+  document.getElementById('loginScreen').style.display = 'none';
+  const shell = document.getElementById('appShell');
+  shell.style.display = 'flex';
+  shell.style.flexDirection = 'column';
+
+  // Populate user info
+  document.getElementById('userEmail').textContent = currentUser.email;
+  const avatar = document.getElementById('userAvatar');
+  if (currentUser.picture) {
+    avatar.innerHTML = `<img src="${currentUser.picture}" alt="">`;
+  } else {
+    avatar.textContent = currentUser.email[0].toUpperCase();
+  }
+
+  loadFiles();
+}
+
+function isAllowed(email) {
+  if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(email)) return false;
+  if (ALLOWED_DOMAIN && !email.endsWith('@' + ALLOWED_DOMAIN)) return false;
+  return true;
+}
+
+function signOut() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null;
+  currentUser = null;
+  files = [];
+  activeFileId = null;
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('fileList').innerHTML = '<div class="sidebar-loading"><div class="spinner"></div>Loading…</div>';
+  resetEditor();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRIVE API HELPERS
+// ═══════════════════════════════════════════════════════════════
+async function driveRequest(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers || {}),
+    }
+  });
+
+  if (res.status === 401) {
+    showToast('Session expired — please sign in again', true);
+    signOut();
+    throw new Error('Unauthorized');
+  }
+
+  return res;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILE LIST
+// ═══════════════════════════════════════════════════════════════
+async function loadFiles() {
+  setSyncing(true);
+  document.getElementById('fileList').innerHTML = '<div class="sidebar-loading"><div class="spinner"></div>Loading…</div>';
+
+  try {
+    // Query Drive for .md files
+    const query = encodeURIComponent(
+      "name contains '.md' and mimeType = 'text/plain' and trashed = false"
+    );
+    const res = await driveRequest(
+      `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime+desc&pageSize=50`
+    );
+    const data = await res.json();
+    files = data.files || [];
+
+    renderFileList(files);
+    setSyncing(false);
+
+    if (files.length === 0) {
+      document.getElementById('fileList').innerHTML =
+        '<div class="sidebar-empty">No .md files found in your Drive.<br>Create one to get started.</div>';
+    }
+  } catch(e) {
+    if (e.message !== 'Unauthorized') {
+      document.getElementById('fileList').innerHTML =
+        '<div class="sidebar-empty">Failed to load files.<br>Check your connection.</div>';
+      showToast('Could not load files from Drive', true);
+    }
+    setSyncing(false);
+  }
+}
+
+function renderFileList(list) {
+  if (!list.length) {
+    document.getElementById('fileList').innerHTML =
+      '<div class="sidebar-empty">No results found.</div>';
+    return;
+  }
+
+  document.getElementById('fileList').innerHTML = list.map(f => `
+    <div class="file-item ${f.id === activeFileId ? 'active' : ''}"
+         id="fi-${f.id}"
+         onclick="selectFile('${f.id}')"
+         oncontextmenu="showContextMenu(event,'${f.id}')">
+      <div class="file-icon">📄</div>
+      <div class="file-meta">
+        <div class="file-name">${escHtml(f.name)}</div>
+        <div class="file-info">
+          <span>${formatDate(f.modifiedTime)}</span>
+          ${f.size ? `<span>·</span><span>${formatSize(f.size)}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterFiles(q) {
+  const lower = q.toLowerCase();
+  const filtered = files.filter(f => f.name.toLowerCase().includes(lower));
+  renderFileList(filtered);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SELECT & READ FILE
+// ═══════════════════════════════════════════════════════════════
+async function selectFile(id) {
+  if (isDirty && activeFileId) {
+    await autoSave(); // save current before switching
+  }
+
+  activeFileId = id;
+  const file = files.find(f => f.id === id);
+  if (!file) return;
+
+  // Highlight sidebar item
+  document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+  const fi = document.getElementById(`fi-${id}`);
+  if (fi) fi.classList.add('active');
+
+  // Show editor
+  showEditor();
+
+  // Set title
+  const baseName = file.name.replace(/\.md$/i, '');
+  document.getElementById('fileTitleInput').value = baseName;
+  document.getElementById('filePath').textContent = `Drive / ${file.name}`;
+
+  // Load content from Drive
+  setLoading(true);
+  try {
+    const res = await driveRequest(
+      `https://www.googleapis.com/drive/v3/files/${id}?alt=media`
+    );
+    const content = await res.text();
+    activeFileContent = content;
+    setEditorContent(content);
+    updateStats();
+    setSaved();
+    document.getElementById('saveBtn').style.display = 'flex';
+  } catch(e) {
+    if (e.message !== 'Unauthorized') showToast('Could not load file content', true);
+  }
+  setLoading(false);
+}
+
+function setEditorContent(md) {
+  document.getElementById('rawEditor').value = md;
+  document.getElementById('wysiwygEditor').innerHTML = marked.parse(md);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SAVE
+// ═══════════════════════════════════════════════════════════════
+function getCurrentMarkdown() {
+  if (currentMode === 'raw') {
+    return document.getElementById('rawEditor').value;
+  }
+  // Convert WYSIWYG html back to markdown (best-effort)
+  return htmlToMarkdown(document.getElementById('wysiwygEditor').innerHTML);
+}
+
+function htmlToMarkdown(html) {
+  // Use the raw editor as source of truth if it was last synced
+  return document.getElementById('rawEditor').value;
+}
+
+async function saveFile() {
+  if (!activeFileId) return;
+  const md = getCurrentMarkdown();
+  const titleVal = document.getElementById('fileTitleInput').value.trim() || 'untitled';
+  const newName = titleVal.endsWith('.md') ? titleVal : titleVal + '.md';
+
+  setSaving(true);
+
+  try {
+    // Update content (media upload)
+    await driveRequest(
+      `https://www.googleapis.com/upload/drive/v3/files/${activeFileId}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: md
+      }
+    );
+
+    // Update name if changed
+    const file = files.find(f => f.id === activeFileId);
+    if (file && file.name !== newName) {
+      await driveRequest(
+        `https://www.googleapis.com/drive/v3/files/${activeFileId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName })
+        }
+      );
+      file.name = newName;
+      file.modifiedTime = new Date().toISOString();
+      renderFileList(files);
+      document.getElementById(`fi-${activeFileId}`)?.classList.add('active');
+    }
+
+    activeFileContent = md;
+    isDirty = false;
+    setSaved();
+    showToast('✓ Saved to Google Drive');
+  } catch(e) {
+    if (e.message !== 'Unauthorized') showToast('Save failed — check your connection', true);
+  }
+
+  setSaving(false);
+}
+
+function markDirty() {
+  isDirty = true;
+  document.getElementById('savedIndicator').style.display = 'none';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(autoSave, 3000); // autosave after 3s idle
+}
+
+async function autoSave() {
+  if (!isDirty || !activeFileId) return;
+  await saveFile();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CREATE NEW FILE
+// ═══════════════════════════════════════════════════════════════
+async function createNewFile() {
+  const rawName = document.getElementById('newFileName').value.trim() || 'untitled';
+  const name = (rawName.endsWith('.md') ? rawName : rawName + '.md');
+  closeModal('newModal');
+
+  const initialContent = `# ${rawName.replace(/\.md$/i,'')}\n\nStart writing here…`;
+
+  try {
+    // Multipart upload: metadata + content
+    const boundary = 'markpad_boundary_' + Date.now();
+    const metadata = JSON.stringify({ name, mimeType: 'text/plain' });
+
+    const body =
+      `--${boundary}\r\n` +
+      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+      `${metadata}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: text/plain; charset=UTF-8\r\n\r\n` +
+      `${initialContent}\r\n` +
+      `--${boundary}--`;
+
+    const res = await driveRequest(
+      `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body
+      }
+    );
+
+    const newFile = await res.json();
+    newFile.size = initialContent.length.toString();
+    files.unshift(newFile);
+    renderFileList(files);
+    showToast(`📄 Created ${name} in Drive`);
+    await selectFile(newFile.id);
+  } catch(e) {
+    if (e.message !== 'Unauthorized') showToast('Could not create file', true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════════════════
+function ctxDelete() {
+  deleteTargetId = ctxTargetId;
+  const file = files.find(f => f.id === deleteTargetId);
+  document.getElementById('deleteModalMsg').textContent =
+    `"${file?.name}" will be permanently deleted from your Google Drive.`;
+  hideContextMenu();
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+async function confirmDelete() {
+  closeModal('deleteModal');
+  if (!deleteTargetId) return;
+
+  try {
+    await driveRequest(
+      `https://www.googleapis.com/drive/v3/files/${deleteTargetId}`,
+      { method: 'DELETE' }
+    );
+    files = files.filter(f => f.id !== deleteTargetId);
+    renderFileList(files);
+    showToast('File deleted from Drive');
+    if (activeFileId === deleteTargetId) {
+      resetEditor();
+    }
+  } catch(e) {
+    if (e.message !== 'Unauthorized') showToast('Could not delete file', true);
+  }
+
+  deleteTargetId = null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENAME (context menu → select & change title)
+// ═══════════════════════════════════════════════════════════════
+async function ctxRename() {
+  hideContextMenu();
+  await selectFile(ctxTargetId);
+  const titleInput = document.getElementById('fileTitleInput');
+  titleInput.focus();
+  titleInput.select();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EDITOR INTERACTIONS
+// ═══════════════════════════════════════════════════════════════
+function execFmt(cmd, arg) {
+  if (currentMode === 'raw') return;
+  document.getElementById('wysiwygEditor').focus();
+  document.execCommand(cmd, false, arg || null);
+  onEditorChange();
+}
+
+function onEditorChange() {
+  // Sync wysiwyg → raw in the background (best-effort conversion)
+  // Raw editor is the source of truth when saving
+  updateStats();
+  markDirty();
+}
+
+function onRawChange() {
+  const md = document.getElementById('rawEditor').value;
+  // Update wysiwyg live preview
+  document.getElementById('wysiwygEditor').innerHTML = marked.parse(md);
+  updateStats();
+  markDirty();
+}
+
+function onTitleChange() {
+  markDirty();
+  const name = document.getElementById('fileTitleInput').value || 'untitled';
+  document.getElementById('filePath').textContent = `Drive / ${name}.md`;
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  const wysiwyg = document.getElementById('wysiwygEditor');
+  const raw = document.getElementById('rawEditor');
+
+  if (mode === 'wysiwyg') {
+    // Render markdown → html
+    wysiwyg.innerHTML = marked.parse(raw.value);
+    wysiwyg.classList.remove('hidden');
+    raw.classList.remove('visible');
+    document.getElementById('modeWysiwyg').classList.add('active');
+    document.getElementById('modeRaw').classList.remove('active');
+  } else {
+    // Keep raw as-is (it's already synced on every change)
+    wysiwyg.classList.add('hidden');
+    raw.classList.add('visible');
+    document.getElementById('modeWysiwyg').classList.remove('active');
+    document.getElementById('modeRaw').classList.add('active');
+    raw.focus();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTEXT MENU
+// ═══════════════════════════════════════════════════════════════
+function showContextMenu(e, fileId) {
+  e.preventDefault();
+  ctxTargetId = fileId;
+  const menu = document.getElementById('contextMenu');
+  menu.style.display = 'block';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 100) + 'px';
+}
+
+function hideContextMenu() {
+  document.getElementById('contextMenu').style.display = 'none';
+}
+
+document.addEventListener('click', hideContextMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideContextMenu(); closeAllModals(); } });
+
+// ═══════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════
+function openNewModal() {
+  document.getElementById('newModal').classList.add('open');
+  document.getElementById('newFileName').value = '';
+  document.getElementById('newFileNamePreview').textContent = 'untitled';
+  setTimeout(() => document.getElementById('newFileName').focus(), 50);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function closeAllModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+
+function updateNewFilePreview() {
+  const val = document.getElementById('newFileName').value || 'untitled';
+  document.getElementById('newFileNamePreview').textContent = val.replace(/\.md$/i,'');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeAllModals();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showEditor() {
+  document.getElementById('emptyState').style.display = 'none';
+  const w = document.getElementById('editorWrapper');
+  w.style.display = 'flex';
+  w.style.flexDirection = 'column';
+  w.style.flex = '1';
+  w.style.overflow = 'hidden';
+}
+
+function resetEditor() {
+  activeFileId = null;
+  isDirty = false;
+  document.getElementById('editorWrapper').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('saveBtn').style.display = 'none';
+}
+
+function setLoading(on) {
+  document.getElementById('wysiwygEditor').style.opacity = on ? '0.4' : '1';
+}
+
+function setSaving(on) {
+  document.getElementById('savingIndicator').style.display = on ? 'flex' : 'none';
+  document.getElementById('savedIndicator').style.display = on ? 'none' : 'flex';
+}
+
+function setSaved() {
+  isDirty = false;
+  setSaving(false);
+  document.getElementById('savedIndicator').style.display = 'flex';
+}
+
+function setSyncing(on) {
+  const btn = document.getElementById('syncBtn');
+  btn.classList.toggle('spinning', on);
+}
+
+function updateStats() {
+  const text = currentMode === 'wysiwyg'
+    ? document.getElementById('wysiwygEditor').innerText
+    : document.getElementById('rawEditor').value;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = `${words} words`;
+  document.getElementById('charCount').textContent = `${text.length} chars`;
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', isError);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+
+function formatSize(bytes) {
+  const b = parseInt(bytes);
+  if (isNaN(b)) return '';
+  if (b < 1024) return `${b} B`;
+  if (b < 1048576) return `${(b/1024).toFixed(1)} KB`;
+  return `${(b/1048576).toFixed(1)} MB`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    if (activeFileId) saveFile();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+    e.preventDefault();
+    if (accessToken) openNewModal();
+  }
+});
+</script>
+</body>
+</html>
