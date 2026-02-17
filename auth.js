@@ -37,7 +37,15 @@ async function handleTokenResponse(resp) {
     return;
   }
 
+  // Store token and user info in localStorage
+  localStorage.setItem('markpad_token', accessToken);
+  localStorage.setItem('markpad_user', JSON.stringify(currentUser));
+
   // Show app
+  showAppInterface();
+}
+
+function showAppInterface() {
   document.getElementById('loginScreen').style.display = 'none';
   const shell = document.getElementById('appShell');
   shell.style.display = 'flex';
@@ -63,6 +71,11 @@ function isAllowed(email) {
 
 function signOut() {
   if (accessToken) google.accounts.oauth2.revoke(accessToken);
+  
+  // Clear stored auth data
+  localStorage.removeItem('markpad_token');
+  localStorage.removeItem('markpad_user');
+  
   accessToken = null;
   currentUser = null;
   files = [];

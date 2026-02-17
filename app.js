@@ -9,6 +9,40 @@ window.onload = () => {
     banner.style.display = 'block';
   }
 
+  // Check for stored token and attempt to restore session
+  const storedToken = localStorage.getItem('markpad_token');
+  const storedUser = localStorage.getItem('markpad_user');
+  
+  if (storedToken && storedUser) {
+    // Restore session from localStorage
+    accessToken = storedToken;
+    currentUser = JSON.parse(storedUser);
+    
+    // Validate token by making a test request
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+    .then(r => {
+      if (r.ok) {
+        // Token is still valid, restore session
+        showAppInterface();
+      } else {
+        // Token expired, clear and show login
+        localStorage.removeItem('markpad_token');
+        localStorage.removeItem('markpad_user');
+        accessToken = null;
+        currentUser = null;
+      }
+    })
+    .catch(() => {
+      // Network error or invalid token
+      localStorage.removeItem('markpad_token');
+      localStorage.removeItem('markpad_user');
+      accessToken = null;
+      currentUser = null;
+    });
+  }
+
   // Wait for GIS to load then set up token client
   const initGIS = () => {
     tokenClient = google.accounts.oauth2.initTokenClient({
