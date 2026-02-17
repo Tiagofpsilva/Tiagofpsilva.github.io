@@ -76,6 +76,14 @@
       Sync
     </button>
 
+    <button class="topbar-btn" id="timelineBtn" onclick="showTimelineView()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      Timeline
+    </button>
+
     <button class="topbar-btn" onclick="signOut()" style="color:var(--text-faint)">Sign out</button>
 
     <button class="topbar-btn primary" id="saveBtn" onclick="saveFile()" style="display:none">
@@ -204,8 +212,6 @@
             <div class="tags-dropdown" id="tagsDropdown"></div>
           </div>
         </div>
-        
-        <div class="title-divider"></div>
 
         <div class="editor-scroll">
           <div class="wysiwyg-editor" id="wysiwygEditor" contenteditable="true" oninput="onEditorChange()"></div>
@@ -224,6 +230,44 @@
               <polyline points="20 6 9 17 4 12"/>
             </svg>
             Saved
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMELINE VIEW -->
+      <div id="timelineView" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+        <div class="timeline-header">
+          <button class="back-btn" onclick="hideTimelineView()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Back to Notes
+          </button>
+          <h2>People Timeline</h2>
+        </div>
+
+        <div class="timeline-search-wrapper">
+          <div class="timeline-search-container">
+            <input 
+              class="timeline-search-input" 
+              id="timelineSearchInput" 
+              placeholder="Search for a person..."
+              oninput="onTimelineSearchChange()"
+              onfocus="showTimelineDropdown()"
+              onblur="hideTimelineDropdownDelayed()"
+            >
+            <div class="timeline-people-dropdown" id="timelinePeopleDropdown"></div>
+          </div>
+        </div>
+
+        <div class="timeline-content" id="timelineContent">
+          <div class="timeline-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <p>Search for a person to see their timeline</p>
           </div>
         </div>
       </div>
@@ -290,6 +334,7 @@
 <script src="contextmenu.js"></script>
 <script src="people.js"></script>
 <script src="tags.js"></script>
+<script src="timeline.js"></script>
 <script src="sheets.js"></script>
 <script src="auth.js"></script>
 <script src="events.js"></script>
