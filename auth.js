@@ -62,7 +62,16 @@ function showAppInterface() {
 
   // Ensure Markpad folder exists, then load files
   ensureMarkpadFolder()
-    .then(() => loadFiles())
+    .then(() => {
+      loadFiles();
+      // Load people cache in background
+      fetchAllPeople().then(people => {
+        allPeople = people;
+        console.log('✓ Preloaded people cache:', allPeople.length);
+      }).catch(e => {
+        console.error('Failed to preload people:', e);
+      });
+    })
     .catch(e => {
       console.error('Failed to initialize Markpad folder:', e);
       showToast('Failed to initialize Markpad folder', true);

@@ -47,7 +47,7 @@ window.onload = () => {
   const initGIS = () => {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/drive.file email profile',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets email profile',
       callback: handleTokenResponse,
     });
   };
