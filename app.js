@@ -3,6 +3,9 @@
 // ═══════════════════════════════════════════════════════════════
 
 window.onload = () => {
+  // Initialize event handlers
+  initEventHandlers();
+  
   // Check config (optional: show warning banner if using default client ID)
   const banner = document.getElementById('configBanner');
   if (banner && GOOGLE_CLIENT_ID === '783578084953-dr7j41nev36va5tj50m792fleng1fu2s.apps.googleusercontent.com') {
